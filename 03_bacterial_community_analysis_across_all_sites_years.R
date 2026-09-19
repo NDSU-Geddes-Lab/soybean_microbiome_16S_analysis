@@ -13,6 +13,8 @@ library(dplyr)
 library(openxlsx)
 library(writexl)
 library(forcats)
+library(ggpubr)
+library(scales)
 
 # Load field phyloseq objects
 physeq <- readRDS("Condo7_PS.all_field_data(2021_to_2023)")
@@ -919,7 +921,6 @@ meta_c <- meta_c[keep, ]
 # Environmental variables
 env <- data.frame(
 CCE = as.numeric(meta_c$CCE),
-Fe = as.numeric(meta_c$Fe),
 IDC_scores = as.numeric(meta_c$IDC.scores),
 pH = as.numeric(meta_c$pH),
 NO3N = as.numeric(meta_c$NO3N),
@@ -929,8 +930,6 @@ OM = as.numeric(meta_c$OM),
 SO4 = as.numeric(meta_c$SO4),
 Na = as.numeric(meta_c$Na),
 NH4 = as.numeric(meta_c$NH4),
-Temperature = as.numeric(meta_c$Temperature),
-Rainfall = as.numeric(meta_c$Rainfall),
 row.names = rownames(meta_c))
 
 
