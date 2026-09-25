@@ -939,8 +939,8 @@ sample_data(ps.rel_amp)$GenotypeFacet <- factor(
 my_colors <- c(
   "#E53935", "#3949AB", "#8E24AA", "#1E88E5", "#00ACC1", "#00897B", "#43A047", "#C0CA33", "#FDD835",
   "#FB8C00", "#00BFA5", "#6D4C41", "#FF8F00", "#303F9F", "#D81B60", "#5E35B1", "#546E7A", "#039BE5",
-  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#9E9D24",
-  "#BDBDBD", "#AD1457", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
+  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#BDBDBD",
+  "#AD1457", "#9E9D24", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
   "#F9A825", "#4E342E", "#D84315", "#757575"
 )
 
@@ -977,22 +977,21 @@ ggsave(
 
 # Save genus legend separately
 
-p <- plot_bar(ps.rel_amp, x = "Sample.names", fill = "Genus") +
+# Save genus legend separately
+p_legend <- plot_bar(ps.rel_amp, x = "Sample.names", fill = "Genus") +
   scale_fill_manual(values = my_colors) +
-  theme_bw(base_size = 26)
+  theme_bw(base_size = 26) +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 24),
+    legend.title = element_text(size = 26, face = "bold")
+  )
 
-get_only_legend <- function(myplot) {
-  tmp <- ggplot_gtable(ggplot_build(myplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  tmp$grobs[[leg]]
-}
+# Extract legend only
+legend_only <- cowplot::get_legend(p_legend)
 
-legend_only <- get_only_legend(p)
-
-ggsave(
-  file.path(out_dir, "Legend_top40_genus_across_fertilizerlevels_Leonard_rhizosphere_2022.png"),
-  plot = legend_only, width = 8, height = 12, units = "in", dpi = 600, bg = "white"
-)
+ggsave(file.path(out_dir, "Legend_top40_genus_across_fertilizerlevels_Leonard_rhizosphere_2022.png"),
+  plot = legend_only, width = 18, height = 12, units = "in", dpi = 600, bg = "white")
 
 
 
@@ -1040,11 +1039,11 @@ sample_data(ps.rel_amp)$GenotypeFacet <- factor(
 
 # 40-color genus palette
 my_colors <- c(
-  "#E53935", "#3949AB", "#8E24AA", "#1E88E5", "#00ACC1", "#00897B", "#43A047", "#C0CA33", "#FDD835",
+  "#E53935", "#3949AB", "#8E24AA", "#00897B", "#00ACC1", "#1E88E5", "#43A047", "#C0CA33", "#FDD835",
   "#FB8C00", "#00BFA5", "#6D4C41", "#FF8F00", "#303F9F", "#D81B60", "#5E35B1", "#546E7A", "#039BE5",
-  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#9E9D24",
-  "#BDBDBD", "#AD1457", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
-  "#F9A825", "#4E342E", "#D84315", "#757575"
+  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#BDBDBD", "#FF7043", "#8D6E63", "#FFB300",
+  "#AD1457", "#9E9D24", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#F9A825",
+  "#4E342E", "#D84315", "#78909C", "#757575"
 )
 
 # Stacked relative abundance plot
@@ -1078,21 +1077,18 @@ ggsave(
 # Save genus legend separately
 p_legend <- plot_bar(ps.rel_amp, x = "Sample.names", fill = "Genus") +
   scale_fill_manual(values = my_colors) +
-  theme_bw(base_size = 26)
+  theme_bw(base_size = 26) +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 24),
+    legend.title = element_text(size = 26, face = "bold")
+  )
 
-get_only_legend <- function(myplot) {
-  tmp <- ggplot_gtable(ggplot_build(myplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  tmp$grobs[[leg]]
-}
+# Extract legend only
+legend_only <- cowplot::get_legend(p_legend)
 
-legend_only <- get_only_legend(p_legend)
-
-ggsave(
-  file.path(out_dir, "Legend_top40_genus_across_fertilizerlevels_Leonard_endosphere_2022.png"),
-  plot = legend_only, width = 8, height = 12, units = "in", dpi = 600, bg = "white"
-)
-
+ggsave(file.path(out_dir, "Legend_top40_genus_across_fertilizerlevels_Leonard_endosphere_2022.png"),
+  plot = legend_only, width = 18, height = 20, units = "in", dpi = 600, bg = "white")
 
 
 
