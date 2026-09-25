@@ -620,8 +620,8 @@ sample_data(ps.rel_amp)$GenotypeFacet <- factor(
 my_colors <- c(
   "#E53935", "#3949AB", "#8E24AA", "#1E88E5", "#00ACC1", "#00897B", "#43A047", "#C0CA33", "#FDD835",
   "#FB8C00", "#00BFA5", "#6D4C41", "#FF8F00", "#303F9F", "#D81B60", "#5E35B1", "#546E7A", "#039BE5",
-  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#9E9D24",
-  "#BDBDBD", "#AD1457", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
+  "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#BDBDBD",
+  "#AD1457", "#9E9D24", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
   "#F9A825", "#4E342E", "#D84315", "#757575"
 )
 
@@ -720,7 +720,7 @@ my_colors <- c(
   "#E53935", "#3949AB", "#8E24AA", "#1E88E5", "#00ACC1", "#00897B", "#43A047", "#C0CA33", "#FDD835",
   "#FB8C00", "#00BFA5", "#6D4C41", "#FF8F00", "#303F9F", "#D81B60", "#5E35B1", "#546E7A", "#039BE5",
   "#00B8D4", "#F4511E", "#7CB342", "#CDDC39", "#FFEB3B", "#FFB300", "#FF7043", "#8D6E63", "#9E9D24",
-  "#BDBDBD", "#AD1457", "#4527A0", "#283593", "#0277BD", "#00838F", "#00695C", "#2E7D32", "#78909C",
+  "#BDBDBD", "#00695C", "#4527A0", "#283593", "#0277BD", "#AD1457", "#00838F", "#2E7D32", "#78909C",
   "#F9A825", "#4E342E", "#D84315", "#757575"
 )
 
@@ -754,240 +754,18 @@ ggsave(file.path(out_dir, "Stacked_barplot_top40_genus_across_fertilizerlevels_L
 # Save genus legend separately
 p_legend <- plot_bar(ps.rel_amp, x = "Sample.names", fill = "Genus") +
   scale_fill_manual(values = my_colors) +
-  theme_bw(base_size = 26)
+  theme_bw(base_size = 26) +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 24),
+    legend.title = element_text(size = 26, face = "bold")
+  )
 
-get_only_legend <- function(myplot) {
-  tmp <- ggplot_gtable(ggplot_build(myplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  tmp$grobs[[leg]]
-}
+# Extract legend only
+legend_only <- cowplot::get_legend(p_legend)
 
-legend_only <- get_only_legend(p_legend)
 
 ggsave(file.path(out_dir, "Legend_top40_genus_across_fertilizerlevels_Leonard_endosphere_2023.png"), 
-       plot = legend_only, width = 8, height = 12, units = "in", dpi = 600, bg = "white")
+       plot = legend_only, width = 18, height = 12, units = "in", dpi = 600, bg = "white")
 
 
-
-
-
-# Differntial abundance analysis by DESeq2 of rhizosphere bacterial genera between the no fertilizer and high fertilizer treatments 
-# at Leonard in 2023
-
-# Subset Leonard rhizosphere samples from 2023
-IDCY3.all <- subset_samples(physeq, Year == "Y2023")
-Leonard.IDCY3 <- subset_samples(IDCY3.all, Location == "Leonard")
-Leonard.IDCY3.Rhizo <- subset_samples(Leonard.IDCY3, Compartments == "Rhizosphere")
-
-# Keep None and High fertilizer treatments
-sample_data(Leonard.IDCY3.Rhizo)$Fertilizer <- trimws(as.character(sample_data(Leonard.IDCY3.Rhizo)$Fertilizer))
-sample_data(Leonard.IDCY3.Rhizo)$Fertilizer <- ifelse(sample_data(Leonard.IDCY3.Rhizo)$Fertilizer %in% c("None", "High"),
-                                                      sample_data(Leonard.IDCY3.Rhizo)$Fertilizer, NA)
-
-sample_data(Leonard.IDCY3.Rhizo)$Fertilizer <- factor(
-  sample_data(Leonard.IDCY3.Rhizo)$Fertilizer,
-  levels = c("None", "High")
-)
-
-Leonard.IDCY3.Rhizo <- prune_samples(
-  !is.na(sample_data(Leonard.IDCY3.Rhizo)$Fertilizer),
-  Leonard.IDCY3.Rhizo
-)
-
-# Agglomerate taxa at the genus level
-ps_genus <- tax_glom(Leonard.IDCY3.Rhizo, taxrank = "Genus", NArm = TRUE)
-
-# Keep taxa with valid genus names
-tx <- as.data.frame(tax_table(ps_genus))
-ps_genus <- prune_taxa(!is.na(tx$Genus) & nzchar(tx$Genus), ps_genus)
-
-tx <- as.data.frame(tax_table(ps_genus))
-tx$feature <- rownames(tx)
-
-# DESeq2 analysis
-dds <- phyloseq_to_deseq2(ps_genus, ~ Fertilizer)
-dds <- estimateSizeFactors(dds, type = "poscounts")
-dds$Fertilizer <- relevel(dds$Fertilizer, ref = "None")
-dds <- DESeq(dds)
-
-alpha <- 0.05
-res_H <- results(dds, contrast = c("Fertilizer", "High", "None"), alpha = alpha)
-
-# Keep significant genera
-df_H <- as.data.frame(res_H)
-df_H$feature <- rownames(df_H)
-
-df_H <- df_H %>%
-  left_join(tx[, c("feature", "Genus")], by = "feature") %>%
-  filter(!is.na(padj), padj < alpha, !is.na(Genus), nzchar(Genus))
-
-# Order genera by log2 fold change
-genus_levels <- df_H %>%
-  distinct(Genus, log2FoldChange) %>%
-  arrange(log2FoldChange) %>%
-  pull(Genus)
-
-# Prepare plotting data
-plot_long <- df_H %>%
-  transmute(
-    Genus = factor(Genus, levels = genus_levels),
-    Enriched = ifelse(log2FoldChange >= 0, "High Fertilizer", "No Fertilizer"),
-    log2FC = log2FoldChange,
-    log10_baseMean = log10(baseMean + 1)
-  ) %>%
-  pivot_longer(cols = c(log2FC, log10_baseMean), names_to = "Metric", values_to = "Value") %>%
-  mutate(
-    Metric = factor(
-      Metric,
-      levels = c("log2FC", "log10_baseMean"),
-      labels = c("High fertilizer vs No fertilizer", "log10(BaseMean + 1)")
-    ),
-    FillGroup = ifelse(Metric == "log10(BaseMean + 1)", "BaseMean", Enriched)
-  )
-
-# Plot significant genera
-p_merged <- ggplot(plot_long, aes(x = Genus, y = Value, fill = FillGroup)) +
-  geom_col(width = 0.82) +
-  coord_flip(clip = "off") +
-  facet_grid(. ~ Metric, scales = "free_x", space = "free_x") +
-  geom_hline(yintercept = 0, linewidth = 0.6, color = "grey40") +
-  scale_fill_manual(
-    values = c(
-      "No Fertilizer" = "#8B1C62",
-      "High Fertilizer" = "#009E73",
-      "BaseMean" = "orange"
-    ),
-    name = NULL
-  ) +
-  labs(x = NULL, y = NULL, title = NULL) +
-  theme_cowplot(font_size = 90) +
-  theme(
-    legend.position = "right",
-    plot.title = element_blank(),
-    strip.text = element_text(size = 60, face = "bold"),
-    axis.text.y = element_text(size = 80, face = "bold", margin = margin(r = 8)),
-    axis.text.x = element_text(size = 90, face = "bold"),
-    axis.title = element_blank(),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 70),
-    plot.margin = margin(t = 12, r = 24, b = 12, l = 12)
-  )
-
-
-# Save figure
-ggsave(
-  file.path(out_dir, "DESeq2_log2FC_and_log10BaseMean_high_vs_no_fertilizer_rhizosphere_Leonard_2023.png"),
-  plot = p_merged, width = 35, height = 45, units = "in", dpi = 300, bg = "white"
-)
-
-
-
-
-# Differential abundance analysis by DESeq2 of endosphere bacterial genera between the no fertilizer and high fertilizer treatments
-# at Leonard in 2023
-
-# Subset Leonard endosphere samples from 2023
-IDCY3.all <- subset_samples(physeq, Year == "Y2023")
-Leonard.IDCY3 <- subset_samples(IDCY3.all, Location == "Leonard")
-Leonard.IDCY3.Endo <- subset_samples(Leonard.IDCY3, Compartments == "Endosphere")
-
-# Keep None and High fertilizer treatments
-sample_data(Leonard.IDCY3.Endo)$Fertilizer <- trimws(as.character(sample_data(Leonard.IDCY3.Endo)$Fertilizer))
-sample_data(Leonard.IDCY3.Endo)$Fertilizer <- ifelse(sample_data(Leonard.IDCY3.Endo)$Fertilizer %in% c("None", "High"),
-                                                     sample_data(Leonard.IDCY3.Endo)$Fertilizer, NA)
-
-sample_data(Leonard.IDCY3.Endo)$Fertilizer <- factor(
-  sample_data(Leonard.IDCY3.Endo)$Fertilizer,
-  levels = c("None", "High")
-)
-
-Leonard.IDCY3.Endo <- prune_samples(
-  !is.na(sample_data(Leonard.IDCY3.Endo)$Fertilizer),
-  Leonard.IDCY3.Endo
-)
-
-# Agglomerate taxa at the genus level
-ps_genus <- tax_glom(Leonard.IDCY3.Endo, taxrank = "Genus", NArm = TRUE)
-
-# Keep taxa with valid genus names
-tx <- as.data.frame(tax_table(ps_genus))
-ps_genus <- prune_taxa(!is.na(tx$Genus) & nzchar(tx$Genus), ps_genus)
-
-tx <- as.data.frame(tax_table(ps_genus))
-tx$feature <- rownames(tx)
-
-# DESeq2 analysis
-dds <- phyloseq_to_deseq2(ps_genus, ~ Fertilizer)
-dds <- estimateSizeFactors(dds, type = "poscounts")
-dds$Fertilizer <- relevel(dds$Fertilizer, ref = "None")
-dds <- DESeq(dds)
-
-alpha <- 0.05
-res_H <- results(dds, contrast = c("Fertilizer", "High", "None"), alpha = alpha)
-
-# Keep significant genera
-df_H <- as.data.frame(res_H)
-df_H$feature <- rownames(df_H)
-
-df_H <- df_H %>%
-  left_join(tx[, c("feature", "Genus")], by = "feature") %>%
-  filter(!is.na(padj), padj < alpha, !is.na(Genus), nzchar(Genus))
-
-# Order genera by log2 fold change
-genus_levels <- df_H %>%
-  distinct(Genus, log2FoldChange) %>%
-  arrange(log2FoldChange) %>%
-  pull(Genus)
-
-# Prepare plotting data
-plot_long <- df_H %>%
-  transmute(
-    Genus = factor(Genus, levels = genus_levels),
-    Enriched = ifelse(log2FoldChange >= 0, "High Fertilizer", "No Fertilizer"),
-    log2FC = log2FoldChange,
-    log10_baseMean = log10(baseMean + 1)
-  ) %>%
-  pivot_longer(cols = c(log2FC, log10_baseMean), names_to = "Metric", values_to = "Value") %>%
-  mutate(
-    Metric = factor(
-      Metric,
-      levels = c("log2FC", "log10_baseMean"),
-      labels = c("High fertilizer vs No fertilizer", "log10(BaseMean + 1)")
-    ),
-    FillGroup = ifelse(Metric == "log10(BaseMean + 1)", "BaseMean", Enriched)
-  )
-
-# Plot significant genera
-p_merged <- ggplot(plot_long, aes(x = Genus, y = Value, fill = FillGroup)) +
-  geom_col(width = 0.82) +
-  coord_flip(clip = "off") +
-  facet_grid(. ~ Metric, scales = "free_x", space = "free_x") +
-  geom_hline(yintercept = 0, linewidth = 0.6, color = "grey40") +
-  scale_fill_manual(
-    values = c(
-      "No Fertilizer" = "#8B1C62",
-      "High Fertilizer" = "#009E73",
-      "BaseMean" = "orange"
-    ),
-    name = NULL
-  ) +
-  labs(x = NULL, y = NULL, title = NULL) +
-  theme_cowplot(font_size = 90) +
-  theme(
-    legend.position = "right",
-    plot.title = element_blank(),
-    strip.text = element_text(size = 60, face = "bold"),
-    axis.text.y = element_text(size = 80, face = "bold", margin = margin(r = 8)),
-    axis.text.x = element_text(size = 90, face = "bold"),
-    axis.title = element_blank(),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 70),
-    plot.margin = margin(t = 12, r = 24, b = 12, l = 12)
-  )
-
-
-# Save figure
-ggsave(
-  file.path(out_dir, "DESeq2_log2FC_and_log10BaseMean_high_vs_no_fertilizer_endosphere_Leonard_2023.png"),
-  plot = p_merged, width = 35, height = 45, units = "in", dpi = 300, bg = "white"
-)
